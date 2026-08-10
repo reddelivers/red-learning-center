@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, CheckCircle2, Clock, FileText, PlayCircle, RotateCcw, Award } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, FileText, PlayCircle, RotateCcw, Award, AlertCircle } from 'lucide-react';
 import type { ModuleWithProgress } from '@/lib/supabase';
 import { formatDuration, statusOf } from '@/lib/progress';
 import { QuizModal } from '@/components/QuizModal';
@@ -13,7 +13,16 @@ interface ModuleViewerProps {
 
 export function ModuleViewer({ module, onBack, onMarkComplete, isSaving }: ModuleViewerProps) {
   const completed = statusOf(module) === 'completed';
-  const hasQuiz = Array.isArray(module.quiz) && module.quiz.length > 0;
+  
+  // Normalize quiz extraction (supports arrays or { questions: [...] } objects from Supabase)
+  const rawQuiz = module.quiz;
+  const quizQuestions = Array.isArray(rawQuiz) 
+    ? rawQuiz 
+    : (rawQuiz && typeof rawQuiz === 'object' && Array.isArray((rawQuiz as any).questions)) 
+      ? (rawQuiz as any).questions 
+      : [];
+
+  const hasQuiz = quizQuestions.length > 0;
   
   // Track if quiz is passed if the module has one
   const [quizPassed, setQuizPassed] = useState(completed);
@@ -67,10 +76,18 @@ export function ModuleViewer({ module, onBack, onMarkComplete, isSaving }: Modul
           <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-ink-100">
             <div>
               <p className="text-sm font-semibold text-ink-800">
-                {completed ? 'You have completed this module.' : hasQuiz && !quizPassed ? 'Pass the quiz to complete this module.' : 'Finished reviewing this module?'}
+                {completed 
+                  ? 'You have completed this module.' 
+                  : hasQuiz && !quizPassed 
+                    ? 'A 100% perfect score on the quiz is required to complete this module.' 
+                    : 'Finished reviewing this module?'}
               </p>
               <p className="mt-1 text-xs text-ink-500">
-                {completed ? 'You can revisit it anytime from the training menu.' : 'Complete all materials and assessments to record progress.'}
+                {completed 
+                  ? 'You can revisit it anytime from the training menu.' 
+                  : hasQuiz && !quizPassed 
+                    ? 'Please pass the quiz below with all correct answers to unlock completion.' 
+                    : 'Complete all materials to record progress.'}
               </p>
             </div>
             <button
@@ -86,16 +103,28 @@ export function ModuleViewer({ module, onBack, onMarkComplete, isSaving }: Modul
 
         {/* Render Quiz Section if module has quiz data */}
         {hasQuiz && (
-          <div className="mt-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Award className="w-5 h-5 text-brand-600" />
-              <h3 className="text-lg font-bold text-ink-900">Module Knowledge Check</h3>
+          <div className="mt-8 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-brand-600" />
+                <h3 className="text-lg font-bold text-ink-900">Module Knowledge Check</h3>
+              </div>
+              {quizPassed ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                  <CheckCircle2 className="w-4 h-4" /> Quiz Passed (100%)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+                  <AlertCircle className="w-4 h-4" /> 100% Score Required
+                </span>
+              )}
             </div>
+
             <QuizModal
-              quiz={module.quiz}
+              quiz={quizQuestions}
               onPass={() => {
                 setQuizPassed(true);
-                onMarkComplete(module.id); // Automatically mark complete upon passing
+                onMarkComplete(module.id); // Automatically mark complete upon achieving 100%
               }}
               onRetry={() => setQuizPassed(false)}
             />
