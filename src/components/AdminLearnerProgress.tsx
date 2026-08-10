@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Loader2, CheckCircle2, Clock, AlertCircle, Award } from 'lucide-react';
+import { Users, Loader2, CheckCircle2, Clock, AlertCircle, Award, CircleDot } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface AdminLearnerProgressProps {
@@ -52,6 +52,8 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
 
       const combined = (profiles ?? []).map((profile) => {
         const userProgress = (progressRows ?? []).filter((p) => p.user_id === profile.id);
+        const completedIds = new Set(userProgress.filter((p) => p.status === 'completed').map((p) => p.module_id));
+        const inProgressIds = new Set(userProgress.filter((p) => p.status === 'in_progress').map((p) => p.module_id));
         
         const completedModules = userProgress
           .filter((p) => p.status === 'completed')
@@ -69,12 +71,19 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
           }))
           .filter((p) => p.module != null);
 
+        // Modules that are neither completed nor in progress
+        const incompleteModules = allModules.filter(
+          (m) => !completedIds.has(m.id) && !inProgressIds.has(m.id)
+        );
+
         return {
           ...profile,
           completedModules,
           inProgressModules,
+          incompleteModules,
           completedCount: completedModules.length,
           inProgressCount: inProgressModules.length,
+          incompleteCount: incompleteModules.length,
         };
       });
 
@@ -106,7 +115,7 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
       <div className="p-6 border-b border-ink-100 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-ink-900">Learner Progress & Roster</h2>
-          <p className="text-sm text-ink-500">Track student engagement, completed module titles, and certificates.</p>
+          <p className="text-sm text-ink-500">Track student engagement, completed items, in-progress work, and pending modules.</p>
         </div>
         <div className="bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5" /> {learners.length} Total Users
@@ -119,15 +128,16 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
             <tr className="bg-ink-50 border-b border-ink-100 text-xs font-semibold uppercase tracking-wider text-ink-500">
               <th className="py-3 px-6">Learner Name / Email</th>
               <th className="py-3 px-6">Role</th>
-              <th className="py-3 px-6">Completed Modules</th>
+              <th className="py-3 px-6">Completed</th>
               <th className="py-3 px-6">In Progress</th>
+              <th className="py-3 px-6">Incomplete / Not Started</th>
               <th className="py-3 px-6">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100 text-sm">
             {learners.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-ink-400">
+                <td colSpan={6} className="py-8 text-center text-ink-400">
                   No learners found in the database.
                 </td>
               </tr>
@@ -148,7 +158,7 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
                   <td className="py-4 px-6">
                     <div className="space-y-1">
                       <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold mb-1">
-                        <CheckCircle2 className="w-4 h-4" /> {learner.completedCount} Completed
+                        <CheckCircle2 className="w-4 h-4" /> {learner.completedCount}
                       </span>
                       {learner.completedModules.length > 0 ? (
                         <ul className="text-xs text-ink-600 space-y-0.5 pl-5 list-disc">
@@ -160,31 +170,52 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-xs text-ink-400 italic">None completed yet</p>
+                        <p className="text-xs text-ink-400 italic">None completed</p>
                       )}
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     <div className="space-y-1">
                       <span className="inline-flex items-center gap-1 text-brand-600 font-semibold mb-1">
-                        <Clock className="w-4 h-4" /> {learner.inProgressCount} In Progress
+                        <Clock className="w-4 h-4" /> {learner.inProgressCount}
                       </span>
                       {learner.inProgressModules.length > 0 ? (
                         <ul className="text-xs text-ink-600 space-y-0.5 pl-5 list-disc">
                           {learner.inProgressModules.map((item: any) => (
                             <li key={item.id}>
                               <span className="font-medium text-ink-800">{item.module.title}</span>
+                              <span className="text-ink-400 ml-1">({item.module.section})</span>
                             </li>
                           ))}
                         </ul>
-                      ) : null}
+                      ) : (
+                        <p className="text-xs text-ink-400 italic">None in progress</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1 text-amber-600 font-semibold mb-1">
+                        <CircleDot className="w-4 h-4" /> {learner.incompleteCount}
+                      </span>
+                      {learner.incompleteModules.length > 0 ? (
+                        <ul className="text-xs text-ink-600 space-y-0.5 pl-5 list-disc">
+                          {learner.incompleteModules.map((m: any) => (
+                            <li key={m.id}>
+                              <span className="font-medium text-ink-800">{m.title}</span>
+                              <span className="text-ink-400 ml-1">({m.section})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-emerald-600 font-medium italic">All modules complete!</p>
+                      )}
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     {onViewCertificate && learner.completedModules.length > 0 && (
                       <button
                         onClick={() => {
-                          // Pick the first completed module's section or default to the first available section
                           const sectionName = learner.completedModules[0]?.module?.section || modules[0]?.section || 'Training';
                           const modulesWithProgress = modules.map((m) => ({
                             ...m,
