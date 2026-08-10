@@ -1,27 +1,60 @@
 import { useState } from 'react';
 import { CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 
-interface Question {
-  question: string;
-  options?: string[];
-  correctIndex: number;
-}
-
 interface QuizModalProps {
-  quiz: Question[];
+  quiz: any;
   onPass: (score: number) => void;
   onRetry: () => void;
 }
 
-export function QuizModal({ quiz, onPass }: QuizModalProps) {
+export function QuizModal({ quiz, onPass, onRetry }: QuizModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [quizFinished, setQuizFinished] = useState(false);
 
-  // Safety check: if quiz is empty or invalid, display a friendly note
-  if (!Array.isArray(quiz) || quiz.length === 0) {
+  // Robustly normalize incoming quiz data (handles strings, objects, and arrays)
+  let parsedQuiz = quiz;
+  if (typeof quiz === 'string') {
+    try {
+      parsedQuiz = JSON.parse(quiz);
+    } catch (e) {
+      parsedQuiz = [];
+    }
+  }
+
+  const rawQuestions = Array.isArray(parsedQuiz)
+    ? parsedQuiz
+    : (parsedQuiz && typeof parsedQuiz === 'object' && Array.isArray(parsedQuiz.questions))
+      ? parsedQuiz.questions
+      : [];
+
+  // Normalize questions to guarantee standard structure with a valid numerical `correctAnswer` index
+  const quizQuestions = rawQuestions.map((q: any) => {
+    const options = Array.isArray(q.options) ? q.options : [];
+    let correctIndex = 0;
+
+    if (typeof q.correctAnswer === 'number') {
+      correctIndex = q.correctAnswer;
+    } else if (typeof q.correct_answer === 'number') {
+      correctIndex = q.correct_answer;
+    } else if (typeof q.correct === 'number') {
+      correctIndex = q.correct;
+    } else if (typeof q.correct === 'string') {
+      // If stored as text string, find its index in options
+      const foundIdx = options.indexOf(q.correct);
+      correctIndex = foundIdx !== -1 ? foundIdx : 0;
+    }
+
+    return {
+      question: q.question || 'Untitled Question',
+      options,
+      correctAnswer: correctIndex,
+    };
+  });
+
+  if (quizQuestions.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-ink-200/70 p-6 text-center max-w-xl mx-auto shadow-sm">
         <p className="text-sm text-ink-500">No quiz questions available for this module yet.</p>
@@ -29,10 +62,9 @@ export function QuizModal({ quiz, onPass }: QuizModalProps) {
     );
   }
 
-  const currentQ = quiz[currentIndex];
+  const currentQ = quizQuestions[currentIndex];
 
-  // Safety check for individual question structure
-  if (!currentQ || !Array.isArray(currentQ.options)) {
+  if (!currentQ || !Array.isArray(currentQ.options) || currentQ.options.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-ink-200/70 p-6 text-center max-w-xl mx-auto shadow-sm">
         <p className="text-sm text-red-600">This quiz has a formatting error. Please check the JSON structure in Supabase.</p>
@@ -46,33 +78,38 @@ export function QuizModal({ quiz, onPass }: QuizModalProps) {
   }
 
   function nextQuestion() {
-    const isCorrect = selectedOption === currentQ.correctIndex;
+    const isCorrect = selectedOption === currentQ.correctAnswer;
     const newScore = isCorrect ? score + 1 : score;
     setScore(newScore);
 
-    if (currentIndex + 1 < quiz.length) {
+    if (currentIndex + 1 < quizQuestions.length) {
       setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
       setShowResult(false);
     } else {
       setQuizFinished(true);
-      const finalScorePercentage = Math.round((newScore / quiz.length) * 100);
-      if (finalScorePercentage >= 70) {
+      const finalScorePercentage = Math.round((newScore / quizQuestions.length) * 100);
+      
+      // Enforce 100% perfect score to pass
+      if (finalScorePercentage === 100) {
         onPass(finalScorePercentage);
+      } else {
+        onRetry();
       }
     }
   }
 
   if (quizFinished) {
-    const passed = Math.round((score / quiz.length) * 100) >= 70;
+    const finalPercentage = Math.round((score / quizQuestions.length) * 100);
+    const passed = finalPercentage === 100;
     return (
       <div className="bg-white rounded-xl border border-ink-200/70 p-6 text-center max-w-lg mx-auto shadow-sm">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${passed ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
           {passed ? <CheckCircle2 className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
         </div>
-        <h3 className="text-lg font-bold text-ink-900">{passed ? 'Quiz Passed!' : 'Keep Practicing'}</h3>
+        <h3 className="text-lg font-bold text-ink-900">{passed ? 'Quiz Passed (100% Correct)!' : '100% Required to Pass'}</h3>
         <p className="text-sm text-ink-500 mt-1">
-          You scored {score} out of {quiz.length} ({Math.round((score / quiz.length) * 100)}%)
+          You scored {score} out of {quizQuestions.length} ({finalPercentage}%). {passed ? '' : 'You must get every question correct to unlock completion.'}
         </p>
       </div>
     );
@@ -81,17 +118,17 @@ export function QuizModal({ quiz, onPass }: QuizModalProps) {
   return (
     <div className="bg-white rounded-xl border border-ink-200/70 p-6 max-w-xl mx-auto shadow-sm">
       <div className="flex justify-between items-center text-xs font-semibold text-ink-400 uppercase tracking-wider mb-4">
-        <span>Question {currentIndex + 1} of {quiz.length}</span>
+        <span>Question {currentIndex + 1} of {quizQuestions.length}</span>
         <span>Score: {score}</span>
       </div>
 
       <h3 className="text-base font-semibold text-ink-900 mb-4">{currentQ.question}</h3>
 
       <div className="space-y-2.5 mb-6">
-        {currentQ.options.map((option, idx) => {
+        {currentQ.options.map((option: string, idx: number) => {
           let styling = "border-ink-200 hover:border-brand-400 bg-ink-50/50 text-ink-800";
           if (showResult) {
-            if (idx === currentQ.correctIndex) styling = "border-emerald-300 bg-emerald-50 text-emerald-900";
+            if (idx === currentQ.correctAnswer) styling = "border-emerald-300 bg-emerald-50 text-emerald-900 font-semibold";
             else if (idx === selectedOption) styling = "border-red-300 bg-red-50 text-red-900";
           }
 
@@ -111,7 +148,7 @@ export function QuizModal({ quiz, onPass }: QuizModalProps) {
       {showResult && (
         <div className="flex justify-end">
           <button onClick={nextQuestion} className="btn-primary flex items-center gap-2">
-            <span>{currentIndex + 1 < quiz.length ? 'Next Question' : 'Finish Quiz'}</span>
+            <span>{currentIndex + 1 < quizQuestions.length ? 'Next Question' : 'Finish Quiz'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

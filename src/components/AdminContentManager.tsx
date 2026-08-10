@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 interface Question {
   question: string;
   options: string[];
-  correctAnswer: number;
+  correct: string; // Stores the exact text string of the correct answer
 }
 
 export function AdminContentManager() {
@@ -75,26 +75,33 @@ export function AdminContentManager() {
             ? rawQuiz.questions
             : [];
 
-        // Map loaded questions, checking both camelCase and snake_case or numeric indices
         setQuestions(
-          loadedQuestions.map((q: any) => ({
-            question: q.question || '',
-            options: q.options || ['', '', '', ''],
-            correctAnswer: typeof q.correctAnswer === 'number' 
-              ? q.correctAnswer 
-              : typeof q.correct_answer === 'number' 
-                ? q.correct_answer 
-                : 0,
-          }))
+          loadedQuestions.map((q: any) => {
+            const opts = q.options || ['', '', '', ''];
+            // Determine correct string from old index or existing correct string
+            let correctStr = q.correct || q.correctAnswer !== undefined ? opts[q.correctAnswer ?? 0] : opts[0];
+            if (typeof q.correct === 'string') {
+              correctStr = q.correct;
+            } else if (typeof q.correctAnswer === 'number' && opts[q.correctAnswer]) {
+              correctStr = opts[q.correctAnswer];
+            }
+
+            return {
+              question: q.question || '',
+              options: opts,
+              correct: correctStr || opts[0],
+            };
+          })
         );
       }
     }
   }
 
   function handleAddQuestion() {
+    const defaultOptions = ['', '', '', ''];
     setQuestions([
       ...questions, 
-      { question: '', options: ['', '', '', ''], correctAnswer: 0 }
+      { question: '', options: defaultOptions, correct: defaultOptions[0] }
     ]);
   }
 
@@ -110,13 +117,20 @@ export function AdminContentManager() {
 
   function handleOptionTextChange(qIndex: number, oIndex: number, text: string) {
     const updated = [...questions];
+    const oldOpt = updated[qIndex].options[oIndex];
     updated[qIndex].options[oIndex] = text;
+    
+    // If the option being edited was the designated correct answer, keep `correct` in sync with the new text
+    if (updated[qIndex].correct === oldOpt) {
+      updated[qIndex].correct = text;
+    }
     setQuestions(updated);
   }
 
   function handleSetCorrectAnswer(qIndex: number, oIndex: number) {
     const updated = [...questions];
-    updated[qIndex].correctAnswer = oIndex;
+    const chosenText = updated[qIndex].options[oIndex];
+    updated[qIndex].correct = chosenText;
     setQuestions(updated);
   }
 
@@ -126,13 +140,13 @@ export function AdminContentManager() {
     setError(null);
     setSuccess(false);
 
-    // Formats into the exact array structure with "options" first
+    // Formats into the exact bracket array where options comes first and correct string is stored directly
     let formattedQuiz = null;
     if (questions.length > 0) {
       formattedQuiz = questions.map((q) => ({
         options: q.options.filter((opt) => opt.trim() !== ''),
         question: q.question,
-        correctAnswer: q.correctAnswer,
+        correct: q.correct,
       }));
     }
 
@@ -379,7 +393,7 @@ export function AdminContentManager() {
                       Answer Choice Boxes <span className="text-emerald-600 font-normal">(Click the button on the left of the correct answer)</span>
                     </label>
                     {q.options.map((opt, oIndex) => {
-                      const isCorrect = q.correctAnswer === oIndex;
+                      const isCorrect = q.correct === opt && opt.trim() !== '';
                       return (
                         <div key={oIndex} className="flex items-center gap-2">
                           <button
