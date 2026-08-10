@@ -21,13 +21,14 @@ function App() {
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [view, setView] = useState<'dashboard' | 'module' | 'certificate' | 'profile' | 'admin_content' | 'admin_learners' | 'admin_add_learner'>('dashboard');
   const [activeSectionName, setActiveSectionName] = useState<string>('');
+  const [viewingStudentName, setViewingStudentName] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userName = profile?.full_name || session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Trainee';
+  const userName = viewingStudentName || profile?.full_name || session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Trainee';
 
   // 1. Manage Supabase Session Authentication state
   useEffect(() => {
@@ -167,6 +168,7 @@ function App() {
   function goToDashboard() {
     setView('dashboard');
     setActiveModuleId(null);
+    setViewingStudentName(null);
   }
 
   if (authLoading) {
@@ -213,6 +215,7 @@ function App() {
             setView(selectedView as any);
             setMobileOpen(false);
             setActiveModuleId(null);
+            setViewingStudentName(null);
           }}
         />
       </div>
@@ -272,7 +275,7 @@ function App() {
               />
             </div>
             <button 
-              onClick={() => setView('profile')} 
+              onClick={() => { setView('profile'); setViewingStudentName(null); }} 
               className="p-2 rounded-lg text-ink-500 hover:bg-ink-100 transition-colors"
               title="Profile Settings"
             >
@@ -310,7 +313,14 @@ function App() {
           ) : view === 'admin_content' ? (
             <AdminContentManager />
           ) : view === 'admin_learners' ? (
-            <AdminLearnerProgress />
+            <AdminLearnerProgress
+              onViewCertificate={(sectionName, studentName, modulesWithProgress) => {
+                setActiveSectionName(sectionName);
+                setViewingStudentName(studentName);
+                setModules(modulesWithProgress as any);
+                setView('certificate');
+              }}
+            />
           ) : view === 'admin_add_learner' ? (
             <AdminAddLearner />
           ) : modules.length === 0 ? (
@@ -324,7 +334,13 @@ function App() {
           ) : view === 'module' && activeModule ? (
             <ModuleViewer module={activeModule} onBack={goToDashboard} onMarkComplete={markComplete} isSaving={saving} />
           ) : view === 'certificate' ? (
-            <Certificate sectionName={activeSectionName} modules={modules} userName={userName} onBack={goToDashboard} />
+            <Certificate 
+              sectionName={activeSectionName} 
+              modules={modules} 
+              userName={userName} 
+              onBack={goToDashboard} 
+              adminBypass={profile?.role === 'admin'} 
+            />
           ) : view === 'profile' ? (
             <ProfileSettings currentName={userName} onBack={goToDashboard} />
           ) : (
@@ -334,6 +350,7 @@ function App() {
               onContinue={openModule} 
               onViewCertificate={(sectionName) => {
                 setActiveSectionName(sectionName);
+                setViewingStudentName(null);
                 setView('certificate');
               }}
             />

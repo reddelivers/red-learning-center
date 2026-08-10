@@ -50,6 +50,14 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
 
       const moduleMap = new Map(allModules.map((m) => [m.id, m]));
 
+      // Group all modules by section for completion checks
+      const sectionMap = new Map<string, any[]>();
+      for (const m of allModules) {
+        const list = sectionMap.get(m.section) ?? [];
+        list.push(m);
+        sectionMap.set(m.section, list);
+      }
+
       const combined = (profiles ?? []).map((profile) => {
         const userProgress = (progressRows ?? []).filter((p) => p.user_id === profile.id);
         const completedIds = new Set(userProgress.filter((p) => p.status === 'completed').map((p) => p.module_id));
@@ -71,16 +79,25 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
           }))
           .filter((p) => p.module != null);
 
-        // Modules that are neither completed nor in progress
         const incompleteModules = allModules.filter(
           (m) => !completedIds.has(m.id) && !inProgressIds.has(m.id)
         );
+
+        // Determine which sections are fully completed by this user
+        const completedSections: string[] = [];
+        for (const [secName, secModules] of sectionMap.entries()) {
+          const allSecComplete = secModules.every((m) => completedIds.has(m.id));
+          if (secModules.length > 0 && allSecComplete) {
+            completedSections.push(secName);
+          }
+        }
 
         return {
           ...profile,
           completedModules,
           inProgressModules,
           incompleteModules,
+          completedSections,
           completedCount: completedModules.length,
           inProgressCount: inProgressModules.length,
           incompleteCount: incompleteModules.length,
@@ -115,7 +132,7 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
       <div className="p-6 border-b border-ink-100 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-ink-900">Learner Progress & Roster</h2>
-          <p className="text-sm text-ink-500">Track student engagement, completed items, in-progress work, and pending modules.</p>
+          <p className="text-sm text-ink-500">Track student engagement, completed items, in-progress work, and certificates.</p>
         </div>
         <div className="bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5" /> {learners.length} Total Users
@@ -131,7 +148,7 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
               <th className="py-3 px-6">Completed</th>
               <th className="py-3 px-6">In Progress</th>
               <th className="py-3 px-6">Incomplete / Not Started</th>
-              <th className="py-3 px-6">Actions</th>
+              <th className="py-3 px-6">Certificates</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100 text-sm">
@@ -213,21 +230,30 @@ export function AdminLearnerProgress({ onViewCertificate }: AdminLearnerProgress
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    {onViewCertificate && learner.completedModules.length > 0 && (
-                      <button
-                        onClick={() => {
-                          const sectionName = learner.completedModules[0]?.module?.section || modules[0]?.section || 'Training';
-                          const modulesWithProgress = modules.map((m) => ({
-                            ...m,
-                            progress: learner.completedModules.find((cm: any) => cm.module_id === m.id) || null
-                          }));
-                          onViewCertificate(sectionName, learner.full_name || learner.email, modulesWithProgress);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-lg text-xs font-semibold transition-colors"
-                      >
-                        <Award className="w-3.5 h-3.5" /> View Certificate
-                      </button>
-                    )}
+                    <div className="space-y-2">
+                      {learner.completedSections.length > 0 ? (
+                        learner.completedSections.map((secName: string) => (
+                          <div key={secName}>
+                            {onViewCertificate && (
+                              <button
+                                onClick={() => {
+                                  const modulesWithProgress = modules.map((m) => ({
+                                    ...m,
+                                    progress: learner.completedModules.find((cm: any) => cm.module_id === m.id) || null
+                                  }));
+                                  onViewCertificate(secName, learner.full_name || learner.email, modulesWithProgress);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-lg text-xs font-semibold transition-colors w-full justify-center"
+                              >
+                                <Award className="w-3.5 h-3.5" /> {secName} Cert
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-xs text-ink-400 italic">No certificates unlocked yet</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
