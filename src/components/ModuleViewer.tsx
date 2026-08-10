@@ -14,8 +14,16 @@ interface ModuleViewerProps {
 export function ModuleViewer({ module, onBack, onMarkComplete, isSaving }: ModuleViewerProps) {
   const completed = statusOf(module) === 'completed';
   
-  // Normalize quiz extraction (supports arrays or { questions: [...] } objects from Supabase)
-  const rawQuiz = module.quiz;
+  // Normalize quiz extraction (supports arrays, stringified JSON, or { questions: [...] } objects from Supabase)
+  let rawQuiz = module.quiz;
+  if (typeof rawQuiz === 'string') {
+    try {
+      rawQuiz = JSON.parse(rawQuiz);
+    } catch (e) {
+      rawQuiz = [];
+    }
+  }
+
   const quizQuestions = Array.isArray(rawQuiz) 
     ? rawQuiz 
     : (rawQuiz && typeof rawQuiz === 'object' && Array.isArray((rawQuiz as any).questions)) 
@@ -26,6 +34,9 @@ export function ModuleViewer({ module, onBack, onMarkComplete, isSaving }: Modul
   
   // Track if quiz is passed if the module has one
   const [quizPassed, setQuizPassed] = useState(completed);
+
+  // Determine if the completion action should be blocked
+  const isBlockedByQuiz = hasQuiz && !quizPassed && !completed;
 
   return (
     <div className="animate-scale-in">
@@ -78,25 +89,30 @@ export function ModuleViewer({ module, onBack, onMarkComplete, isSaving }: Modul
               <p className="text-sm font-semibold text-ink-800">
                 {completed 
                   ? 'You have completed this module.' 
-                  : hasQuiz && !quizPassed 
+                  : isBlockedByQuiz 
                     ? 'A 100% perfect score on the quiz is required to complete this module.' 
                     : 'Finished reviewing this module?'}
               </p>
               <p className="mt-1 text-xs text-ink-500">
                 {completed 
                   ? 'You can revisit it anytime from the training menu.' 
-                  : hasQuiz && !quizPassed 
+                  : isBlockedByQuiz 
                     ? 'Please pass the quiz below with all correct answers to unlock completion.' 
                     : 'Complete all materials to record progress.'}
               </p>
             </div>
             <button
-              onClick={() => onMarkComplete(module.id)}
-              disabled={isSaving || (hasQuiz && !quizPassed && !completed)}
-              className={completed ? 'btn-secondary' : 'btn-primary'}
+              onClick={() => {
+                if (!isBlockedByQuiz) {
+                  onMarkComplete(module.id);
+                }
+              }}
+              disabled={isSaving || isBlockedByQuiz}
+              className={`${completed ? 'btn-secondary' : 'btn-primary'} ${isBlockedByQuiz ? 'opacity-50 cursor-not-allowed hover:bg-brand-600' : ''}`}
+              title={isBlockedByQuiz ? 'Complete the quiz with 100% to unlock' : ''}
             >
               {completed ? <RotateCcw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-              {isSaving ? 'Saving...' : completed ? 'Mark as incomplete' : 'Mark as complete'}
+              {isSaving ? 'Saving...' : completed ? 'Mark as incomplete' : isBlockedByQuiz ? 'Quiz Required (100%)' : 'Mark as complete'}
             </button>
           </div>
         </div>
