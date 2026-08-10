@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, Edit3, Trash2, Loader2, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Loader2, CheckCircle, AlertCircle, HelpCircle, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Question {
   question: string;
   options: string[];
-  correctAnswer: number; // Index of the correct option
+  correctAnswer: number;
 }
 
 export function AdminContentManager() {
@@ -19,7 +19,6 @@ export function AdminContentManager() {
   const [contentUrl, setContentUrl] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('15');
   
-  // Visual state for building questions easily
   const [questions, setQuestions] = useState<Question[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -29,7 +28,6 @@ export function AdminContentManager() {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all existing modules on load
   useEffect(() => {
     async function fetchModules() {
       setFetchingModules(true);
@@ -47,7 +45,6 @@ export function AdminContentManager() {
     void fetchModules();
   }, []);
 
-  // Handle switching between "Create New" and an existing module
   function handleSelectModuleChange(id: string) {
     setSelectedModuleId(id);
     setSuccess(false);
@@ -71,7 +68,6 @@ export function AdminContentManager() {
         setContentUrl(found.content_url || '');
         setDurationMinutes(String(found.duration_minutes ?? '15'));
         
-        // Parse incoming quiz JSON back into visual builder state if it exists
         if (found.quiz && Array.isArray(found.quiz.questions)) {
           setQuestions(found.quiz.questions);
         } else {
@@ -81,9 +77,12 @@ export function AdminContentManager() {
     }
   }
 
-  // Quiz question helper functions
+  // Super simple: Always creates 4 answer choices by default
   function handleAddQuestion() {
-    setQuestions([...questions, { question: '', options: ['', ''], correctAnswer: 0 }]);
+    setQuestions([
+      ...questions, 
+      { question: '', options: ['', '', '', ''], correctAnswer: 0 }
+    ]);
   }
 
   function handleRemoveQuestion(qIndex: number) {
@@ -93,21 +92,6 @@ export function AdminContentManager() {
   function handleQuestionTextChange(qIndex: number, text: string) {
     const updated = [...questions];
     updated[qIndex].question = text;
-    setQuestions(updated);
-  }
-
-  function handleAddOption(qIndex: number) {
-    const updated = [...questions];
-    updated[qIndex].options.push('');
-    setQuestions(updated);
-  }
-
-  function handleRemoveOption(qIndex: number, oIndex: number) {
-    const updated = [...questions];
-    updated[qIndex].options = updated[qIndex].options.filter((_, i) => i !== oIndex);
-    if (updated[qIndex].correctAnswer >= updated[qIndex].options.length) {
-      updated[qIndex].correctAnswer = Math.max(0, updated[qIndex].options.length - 1);
-    }
     setQuestions(updated);
   }
 
@@ -129,13 +113,12 @@ export function AdminContentManager() {
     setError(null);
     setSuccess(false);
 
-    // Automatically format visual questions into the required Supabase JSONB structure
     let formattedQuiz = null;
     if (questions.length > 0) {
       formattedQuiz = {
         questions: questions.map((q) => ({
           question: q.question,
-          options: q.options,
+          options: q.options.filter((opt) => opt.trim() !== ''), // clean out empty boxes
           correctAnswer: q.correctAnswer,
         })),
       };
@@ -225,7 +208,6 @@ export function AdminContentManager() {
         </div>
       </div>
 
-      {/* Module Selector Dropdown */}
       <div className="mb-6 pb-6 border-b border-ink-100">
         <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600 mb-1.5">
           Select Module to Edit or Create New
@@ -327,101 +309,93 @@ export function AdminContentManager() {
           />
         </div>
 
-        {/* Visual Quiz Builder Section */}
+        {/* Stupid simple quiz creator */}
         <div className="pt-4 border-t border-ink-100">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <label className="block text-sm font-bold text-ink-900 flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-brand-600" /> Quiz Builder
+                <HelpCircle className="w-4 h-4 text-brand-600" /> Quiz Questions
               </label>
-              <p className="text-xs text-ink-500">Add questions and select the correct answer. This auto-formats into Supabase JSON.</p>
+              <p className="text-xs text-ink-500">Click a box to mark which answer choice is correct (turns green).</p>
             </div>
             <button
               type="button"
               onClick={handleAddQuestion}
-              className="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+              className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
             >
-              <PlusCircle className="w-3.5 h-3.5" /> Add Question
+              <PlusCircle className="w-4 h-4" /> Add Question
             </button>
           </div>
 
           {questions.length === 0 ? (
-            <div className="p-6 bg-ink-50/50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 italic">
-              No quiz questions added yet. Click "Add Question" above to start building.
+            <div className="p-8 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400">
+              No quiz questions added yet. Click <strong>Add Question</strong> to start.
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {questions.map((q, qIndex) => (
-                <div key={qIndex} className="p-4 rounded-xl border border-ink-200 bg-ink-50/30 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0">
-                      {qIndex + 1}
+                <div key={qIndex} className="p-5 rounded-xl border border-ink-200 bg-ink-50/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-ink-700">
+                      Question #{qIndex + 1}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveQuestion(qIndex)}
+                      className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete Question
+                    </button>
+                  </div>
+
+                  {/* Question Box */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-ink-500 mb-1">Question Box</label>
                     <input
                       type="text"
                       required
                       value={q.question}
                       onChange={(e) => handleQuestionTextChange(qIndex, e.target.value)}
-                      placeholder="Enter question text..."
-                      className="flex-1 rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                      placeholder="Type your question here..."
+                      className="w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 font-medium"
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveQuestion(qIndex)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove Question"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
 
-                  {/* Options List */}
-                  <div className="pl-8 space-y-2">
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-                      Answer Options (Select the radio button for the correct answer)
+                  {/* Answer Choice Boxes */}
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-semibold text-ink-500">
+                      Answer Choice Boxes <span className="text-emerald-600 font-normal">(Click the button on the left of the correct answer)</span>
                     </label>
-                    {q.options.map((opt, oIndex) => (
-                      <div key={oIndex} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name={`correct-${qIndex}`}
-                          checked={q.correctAnswer === oIndex}
-                          onChange={() => handleSetCorrectAnswer(qIndex, oIndex)}
-                          className="w-4 h-4 text-brand-600 accent-brand-600 cursor-pointer"
-                          title="Mark as correct answer"
-                        />
-                        <input
-                          type="text"
-                          required
-                          value={opt}
-                          onChange={(e) => handleOptionTextChange(qIndex, oIndex, e.target.value)}
-                          placeholder={`Option ${oIndex + 1}...`}
-                          className={`flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none bg-white ${
-                            q.correctAnswer === oIndex 
-                              ? 'border-emerald-500 ring-1 ring-emerald-500 font-medium text-emerald-900' 
-                              : 'border-ink-200 focus:border-brand-500'
-                          }`}
-                        />
-                        {q.options.length > 2 && (
+                    {q.options.map((opt, oIndex) => {
+                      const isCorrect = q.correctAnswer === oIndex;
+                      return (
+                        <div key={oIndex} className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => handleRemoveOption(qIndex, oIndex)}
-                            className="text-ink-400 hover:text-red-600 p-1"
-                            title="Remove option"
+                            onClick={() => handleSetCorrectAnswer(qIndex, oIndex)}
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-all ${
+                              isCorrect 
+                                ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300' 
+                                : 'bg-white border border-ink-200 text-ink-400 hover:border-ink-400'
+                            }`}
+                            title={isCorrect ? 'Correct Answer' : 'Click to mark as correct'}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {isCorrect ? <Check className="w-4 h-4" /> : String.fromCharCode(65 + oIndex)}
                           </button>
-                        )}
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddOption(qIndex)}
-                      className="text-xs font-medium text-brand-600 hover:text-brand-700 mt-1 inline-flex items-center gap-1"
-                    >
-                      + Add Option
-                    </button>
+                          <input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => handleOptionTextChange(qIndex, oIndex, e.target.value)}
+                            placeholder={`Answer choice ${oIndex + 1}...`}
+                            className={`flex-1 rounded-lg border px-3.5 py-2 text-sm outline-none bg-white ${
+                              isCorrect 
+                                ? 'border-emerald-500 ring-1 ring-emerald-500 text-emerald-950 font-medium' 
+                                : 'border-ink-200 focus:border-brand-500'
+                            }`}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
