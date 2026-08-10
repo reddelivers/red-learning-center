@@ -68,16 +68,19 @@ export function AdminContentManager() {
         setContentUrl(found.content_url || '');
         setDurationMinutes(String(found.duration_minutes ?? '15'));
         
-        if (found.quiz && Array.isArray(found.quiz.questions)) {
-          setQuestions(found.quiz.questions);
-        } else {
-          setQuestions([]);
-        }
+        // Support loading either standard array or object wrapper formats
+        const rawQuiz = found.quiz;
+        const loadedQuestions = Array.isArray(rawQuiz) 
+          ? rawQuiz 
+          : (rawQuiz && typeof rawQuiz === 'object' && Array.isArray(rawQuiz.questions))
+            ? rawQuiz.questions
+            : [];
+
+        setQuestions(loadedQuestions);
       }
     }
   }
 
-  // Super simple: Always creates 4 answer choices by default
   function handleAddQuestion() {
     setQuestions([
       ...questions, 
@@ -113,15 +116,14 @@ export function AdminContentManager() {
     setError(null);
     setSuccess(false);
 
+    // Formats into a direct array where "options" is specified first per question object
     let formattedQuiz = null;
     if (questions.length > 0) {
-      formattedQuiz = {
-        questions: questions.map((q) => ({
-          question: q.question,
-          options: q.options.filter((opt) => opt.trim() !== ''), // clean out empty boxes
-          correctAnswer: q.correctAnswer,
-        })),
-      };
+      formattedQuiz = questions.map((q) => ({
+        options: q.options.filter((opt) => opt.trim() !== ''),
+        question: q.question,
+        correctAnswer: q.correctAnswer,
+      }));
     }
 
     const payload = {
@@ -309,7 +311,7 @@ export function AdminContentManager() {
           />
         </div>
 
-        {/* Stupid simple quiz creator */}
+        {/* Quiz Creator */}
         <div className="pt-4 border-t border-ink-100">
           <div className="flex items-center justify-between mb-4">
             <div>
