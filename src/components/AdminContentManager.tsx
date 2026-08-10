@@ -68,7 +68,6 @@ export function AdminContentManager() {
         setContentUrl(found.content_url || '');
         setDurationMinutes(String(found.duration_minutes ?? '15'));
         
-        // Support loading either standard array or object wrapper formats
         const rawQuiz = found.quiz;
         const loadedQuestions = Array.isArray(rawQuiz) 
           ? rawQuiz 
@@ -76,7 +75,18 @@ export function AdminContentManager() {
             ? rawQuiz.questions
             : [];
 
-        setQuestions(loadedQuestions);
+        // Map loaded questions, checking both camelCase and snake_case or numeric indices
+        setQuestions(
+          loadedQuestions.map((q: any) => ({
+            question: q.question || '',
+            options: q.options || ['', '', '', ''],
+            correctAnswer: typeof q.correctAnswer === 'number' 
+              ? q.correctAnswer 
+              : typeof q.correct_answer === 'number' 
+                ? q.correct_answer 
+                : 0,
+          }))
+        );
       }
     }
   }
@@ -116,7 +126,7 @@ export function AdminContentManager() {
     setError(null);
     setSuccess(false);
 
-    // Formats into a direct array where "options" is specified first per question object
+    // Formats into the exact array structure with "options" first
     let formattedQuiz = null;
     if (questions.length > 0) {
       formattedQuiz = questions.map((q) => ({
