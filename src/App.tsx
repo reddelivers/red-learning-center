@@ -140,6 +140,7 @@ function App() {
     const isCompleted = current?.progress?.status === 'completed';
     setSaving(true);
     const now = new Date().toISOString();
+    
     const { data, error: progressError } = await supabase
       .from('progress')
       .upsert(
@@ -155,7 +156,9 @@ function App() {
       )
       .select()
       .maybeSingle();
+
     setSaving(false);
+    
     if (progressError) {
       setError('Your progress could not be saved. Please try again.');
       return;
