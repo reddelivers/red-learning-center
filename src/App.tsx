@@ -18,6 +18,7 @@ function App() {
   const [profile, setProfile] = useState<any>(null);
 
   const [modules, setModules] = useState<ModuleWithProgress[]>([]);
+  const [certificateModules, setCertificateModules] = useState<ModuleWithProgress[]>([]);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [view, setView] = useState<'dashboard' | 'module' | 'certificate' | 'profile' | 'admin_content' | 'admin_learners' | 'admin_add_learner'>('dashboard');
   const [activeSectionName, setActiveSectionName] = useState<string>('');
@@ -172,6 +173,7 @@ function App() {
     setView('dashboard');
     setActiveModuleId(null);
     setViewingStudentName(null);
+    setCertificateModules([]);
   }
 
   if (authLoading) {
@@ -219,6 +221,7 @@ function App() {
             setMobileOpen(false);
             setActiveModuleId(null);
             setViewingStudentName(null);
+            setCertificateModules([]);
           }}
         />
       </div>
@@ -278,7 +281,7 @@ function App() {
               />
             </div>
             <button 
-              onClick={() => { setView('profile'); setViewingStudentName(null); }} 
+              onClick={() => { setView('profile'); setViewingStudentName(null); setCertificateModules([]); }} 
               className="p-2 rounded-lg text-ink-500 hover:bg-ink-100 transition-colors"
               title="Profile Settings"
             >
@@ -320,7 +323,7 @@ function App() {
               onViewCertificate={(sectionName, studentName, modulesWithProgress) => {
                 setActiveSectionName(sectionName);
                 setViewingStudentName(studentName);
-                setModules(modulesWithProgress as any);
+                setCertificateModules(modulesWithProgress as any);
                 setView('certificate');
               }}
             />
@@ -339,7 +342,7 @@ function App() {
           ) : view === 'certificate' ? (
             <Certificate 
               sectionName={activeSectionName} 
-              modules={modules} 
+              modules={viewingStudentName ? certificateModules : modules} 
               userName={userName} 
               onBack={goToDashboard} 
               adminBypass={profile?.role === 'admin'} 
@@ -354,6 +357,7 @@ function App() {
               onViewCertificate={(sectionName) => {
                 setActiveSectionName(sectionName);
                 setViewingStudentName(null);
+                setCertificateModules([]);
                 setView('certificate');
               }}
             />
