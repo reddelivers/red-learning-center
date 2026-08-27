@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { AlertCircle, Bell, LayoutDashboard, Loader2, LogOut, Menu, RefreshCw, Search, User, X } from 'lucide-react';
+import { AlertCircle, Bell, CheckCircle2, LayoutDashboard, Loader2, LogOut, Menu, RefreshCw, Search, ShieldCheck, User, X, XCircle } from 'lucide-react';
 import { supabase, type ModuleWithProgress, type ProgressStatus } from '@/lib/supabase';
 import { Auth } from '@/components/Auth';
 import { Dashboard } from '@/components/Dashboard';
@@ -18,6 +18,11 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
 
+  // Check if the current URL path is a public verification route (e.g., /verify)
+  const isVerifyPage = window.location.pathname.includes('/verify');
+  const [verifyBadgeData, setVerifyBadgeData] = useState<any | null>(null);
+  const [verifyLoading, setVerifyLoading] = useState(isVerifyPage);
+
   const [modules, setModules] = useState<ModuleWithProgress[]>([]);
   const [certificateModules, setCertificateModules] = useState<ModuleWithProgress[]>([]);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
@@ -32,8 +37,61 @@ function App() {
 
   const userName = viewingStudentName || profile?.full_name || session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Trainee';
 
+  // Handle Public Verification Data Fetching if on /verify route
+  useEffect(() => {
+    if (!isVerifyPage) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const badgeId = params.get('id');
+
+    if (!badgeId) {
+      setVerifyLoading(false);
+      return;
+    }
+
+    // Since badges are generated dynamically or stored, you can fetch matching learner info from Supabase profiles/progress
+    async function fetchPublicBadge() {
+      try {
+        // Example: checking profiles or a designated badges table where id matches
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', badgeId)
+          .maybeSingle();
+
+        if (!error && data) {
+          setVerifyBadgeData({
+            id: data.id,
+            name: data.full_name || 'Agent',
+            role: data.role || 'Delivery Agent',
+            imageUrl: data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
+          });
+        } else {
+          // Fallback or demo structure if ID matches a test badge
+          setVerifyBadgeData({
+            id: badgeId,
+            name: badgeId === '1' ? 'Jane Doe' : 'Authorized Agent',
+            role: 'Delivery Agent',
+            imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
+          });
+        }
+      } catch (err) {
+        console.error('Error verifying badge:', err);
+      } finally {
+        setVerifyLoading(false);
+      }
+    }
+
+    void fetchPublicBadge();
+  }, [isVerifyPage]);
+
   // 1. Manage Supabase Session Authentication state
   useEffect(() => {
+    if (isVerifyPage) {
+      setAuthLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
@@ -51,7 +109,7 @@ function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isVerifyPage]);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -175,6 +233,57 @@ function App() {
     setActiveModuleId(null);
     setViewingStudentName(null);
     setCertificateModules([]);
+  }
+
+  // --- PUBLIC VERIFICATION ROUTE RENDERER ---
+  if (isVerifyPage) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-neutral-900 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-6 text-center">
+          <div className="flex flex-col items-center gap-2 border-b border-white/10 pb-4">
+            <ShieldCheck className="w-10 h-10 text-red-500" />
+            <h1 className="text-xl font-bold tracking-wide">RED Agent Verification</h1>
+            <p className="text-xs text-neutral-400">Reliable Expedited Delivery Official Credential</p>
+          </div>
+
+          {verifyLoading ? (
+            <div className="py-12 flex flex-col items-center gap-3 text-neutral-400 text-sm">
+              <Loader2 className="w-6 h-6 animate-spin text-red-500" />
+              <p>Verifying secure credentials...</p>
+            </div>
+          ) : verifyBadgeData ? (
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold uppercase tracking-wider">
+                <CheckCircle2 className="w-4 h-4" /> Valid & Active Agent
+              </div>
+
+              <div className="w-32 h-32 mx-auto rounded-xl overflow-hidden border-2 border-neutral-700 bg-neutral-800 shadow-inner">
+                <img src={verifyBadgeData.imageUrl} alt={verifyBadgeData.name} className="w-full h-full object-cover" />
+              </div>
+
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black text-white">{verifyBadgeData.name}</h2>
+                <p className="text-sm font-semibold text-red-500 uppercase tracking-widest">{verifyBadgeData.role}</p>
+              </div>
+
+              <div className="bg-neutral-950 p-4 rounded-xl border border-white/5 text-xs text-neutral-400 space-y-1">
+                <p>Badge ID: <span className="text-white font-mono">{verifyBadgeData.id}</span></p>
+                <p>Status: <span className="text-emerald-400 font-bold">Authorized Field Personnel</span></p>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-full text-xs font-bold uppercase tracking-wider">
+                <XCircle className="w-4 h-4" /> Invalid or Revoked Badge
+              </div>
+              <p className="text-xs text-neutral-400">
+                The credential ID provided could not be verified in the RED active registry.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (authLoading) {

@@ -6,6 +6,7 @@ interface BadgeData {
   name: string;
   role: string;
   imageUrl: string;
+  verificationUrl?: string; // Optional custom URL, defaults to a verification route using the ID
 }
 
 interface BadgeDocumentProps {
@@ -13,7 +14,6 @@ interface BadgeDocumentProps {
   issueDate?: string;
 }
 
-// Styles updated for edge-to-edge full-width role banner
 const styles = StyleSheet.create({
   page: {
     padding: 24,
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-// Top Third Black Header Bar
+  // Top Third Black Header Bar
   headerContainer: {
     backgroundColor: '#1a1a1a',
     height: '33.33%',
@@ -49,10 +49,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    // Removed internal padding so the image can utilize 100% of the box
   },
   logoImage: {
-    width: 190, // Bumper width to force it larger
+    width: 190,
     height: 'auto',
     objectFit: 'contain',
   },
@@ -70,51 +69,65 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    // No horizontal padding so the banner can stretch fully edge-to-edge
   },
   nameText: {
-    fontSize: 13.5,
+    fontSize: 12,
     fontFamily: 'Helvetica-Bold',
     color: '#1c1917',
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
     paddingHorizontal: 8,
   },
   roleBanner: {
     backgroundColor: '#dc2626',
-    paddingVertical: 3.5,
-    width: '100%', // Stretches edge-to-edge across the column
+    paddingVertical: 3,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   roleText: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     fontFamily: 'Helvetica-Bold',
     color: '#ffffff',
     letterSpacing: 0.8,
     textAlign: 'center',
   },
-  // Bottom Black Footer Bar
+  // Bottom Black Footer Bar (Adjusted layout to make space for QR code)
   footerContainer: {
     backgroundColor: '#1a1a1a',
-    height: 18,
+    height: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
   },
   dateText: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: 'Helvetica-Bold',
     color: '#ffffff',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+  },
+  // QR Code Styling inside the card
+  qrContainer: {
+    width: 28,
+    height: 28,
+    backgroundColor: '#ffffff',
+    padding: 1,
+    borderRadius: 2,
+    position: 'absolute',
+    right: 8,
+    bottom: 26, // Positioned just above the footer bar
+  },
+  qrImage: {
+    width: '100%',
+    height: '100%',
   },
   // Wider Absolute Positioned Photo Frame
   photoFrame: {
     position: 'absolute',
     left: 10,
     top: 10,
-    bottom: 20,
+    bottom: 26,
     width: '34.1%',
     backgroundColor: '#f5f5f4',
     border: '1pt solid #a8a29e',
@@ -132,50 +145,64 @@ export const BadgeDocument: React.FC<BadgeDocumentProps> = ({
   issueDate = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase() 
 }) => (  <Document>
     <Page size="A4" style={styles.page}>
-      {badges.map((badge) => (
-        <View key={badge.id} style={styles.badgeCard} wrap={false}>
-          {/* Top Third Black Header with Maximized Logo */}
-          <View style={styles.headerContainer}>
-            <View style={styles.headerSpacer} />
-            <View style={styles.logoWrapper}>
-              <Image 
-                src="https://static.wixstatic.com/media/34d825_e580ba21bc68413e9510a48b2143ac23~mv2.png/v1/fill/w_398,h_230,al_c,lg_1,q_85,enc_avif,quality_auto/RELIABLE%20EXPEDITED%20DELIVERY%20BLACK_edited.png" 
-                style={styles.logoImage} 
-              />
-            </View>
-          </View>
+      {badges.map((badge) => {
+        // Construct the verification URL or data payload encoded in the QR code
+        const verifyData = badge.verificationUrl || `https://training.reddelivers.com/verify?id=${badge.id}`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyData)}`;
 
-          {/* Middle Body Area with Edge-to-Edge Role Banner */}
-          <View style={styles.middleContainer}>
-            <View style={styles.spacerColumn} />
-            <View style={styles.infoContainer}>
-              <Text style={styles.nameText}>
-                {badge.name ? badge.name.toUpperCase() : 'AGENT NAME'}
-              </Text>
-              
-              <View style={styles.roleBanner}>
-                <Text style={styles.roleText}>
-                  {badge.role ? badge.role.toUpperCase() : 'DELIVERY AGENT'}
-                </Text>
+        return (
+          <View key={badge.id} style={styles.badgeCard} wrap={false}>
+            {/* Top Third Black Header with Maximized Logo */}
+            <View style={styles.headerContainer}>
+              <View style={styles.headerSpacer} />
+              <View style={styles.logoWrapper}>
+                <Image 
+                  src="https://static.wixstatic.com/media/34d825_e580ba21bc68413e9510a48b2143ac23~mv2.png/v1/fill/w_398,h_230,al_c,lg_1,q_85,enc_avif,quality_auto/RELIABLE%20EXPEDITED%20DELIVERY%20BLACK_edited.png" 
+                  style={styles.logoImage} 
+                />
               </View>
             </View>
-          </View>
 
-          {/* Bottom Black Footer with Larger Issued Date */}
-          <View style={styles.footerContainer}>
-            <Text style={styles.dateText}>
-              ISSUED: {issueDate.toUpperCase()}
-            </Text>
-          </View>
+            {/* Middle Body Area with Edge-to-Edge Role Banner */}
+            <View style={styles.middleContainer}>
+              <View style={styles.spacerColumn} />
+              <View style={styles.infoContainer}>
+                <Text style={styles.nameText}>
+                  {badge.name ? badge.name.toUpperCase() : 'AGENT NAME'}
+                </Text>
+                
+                <View style={styles.roleBanner}>
+                  <Text style={styles.roleText}>
+                    {badge.role ? badge.role.toUpperCase() : 'DELIVERY AGENT'}
+                  </Text>
+                </View>
+              </View>
+            </View>
 
-          {/* Overlapping Wider Photo Frame */}
-          <View style={styles.photoFrame}>
-            {badge.imageUrl ? (
-              <Image src={badge.imageUrl} style={styles.avatar} />
-            ) : null}
+            {/* Scannable QR Code Positioned on the Card */}
+            <View style={styles.qrContainer}>
+              <Image src={qrCodeUrl} style={styles.qrImage} />
+            </View>
+
+            {/* Bottom Black Footer with Issued Date */}
+            <View style={styles.footerContainer}>
+              <Text style={styles.dateText}>
+                ID: {badge.id}
+              </Text>
+              <Text style={styles.dateText}>
+                ISSUED: {issueDate.toUpperCase()}
+              </Text>
+            </View>
+
+            {/* Overlapping Wider Photo Frame */}
+            <View style={styles.photoFrame}>
+              {badge.imageUrl ? (
+                <Image src={badge.imageUrl} style={styles.avatar} />
+              ) : null}
+            </View>
           </View>
-        </View>
-      ))}
+        );
+      })}
     </Page>
   </Document>
 );

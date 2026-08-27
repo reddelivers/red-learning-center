@@ -8,13 +8,15 @@ interface BadgeItem {
   name: string;
   role: string;
   imageUrl: string;
+  verificationUrl?: string;
 }
 
 export const BadgeGenerator: React.FC = () => {
-const [issueDate, setIssueDate] = useState<string>(() => {
+  const [issueDate, setIssueDate] = useState<string>(() => {
     return new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
   });
-    const [badges, setBadges] = useState<BadgeItem[]>([
+  
+  const [badges, setBadges] = useState<BadgeItem[]>([
     { 
       id: '1', 
       name: 'Jane Doe', 
@@ -26,6 +28,10 @@ const [issueDate, setIssueDate] = useState<string>(() => {
   const [activePreviewIndex, setActivePreviewIndex] = useState<number>(0);
 
   const activeBadge = badges[activePreviewIndex] || badges[0] || { id: '1', name: '', role: 'Delivery Agent', imageUrl: '' };
+
+  // Compute live QR code URL for the active preview card
+  const activeVerifyData = activeBadge.verificationUrl || `https://yourdomain.com/verify?id=${activeBadge.id}`;
+  const activeQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(activeVerifyData)}`;
 
   const handleFieldChange = (field: keyof BadgeItem, value: string) => {
     setBadges((prevBadges) => {
@@ -149,7 +155,7 @@ const [issueDate, setIssueDate] = useState<string>(() => {
             </div>
           </div>
 
-          {/* Exact Visual ID Card Mockup with Edge-to-Edge Banner */}
+          {/* Exact Visual ID Card Mockup with Edge-to-Edge Banner & QR Code */}
           <div className="w-full aspect-[1.58/1] bg-white rounded-md shadow-2xl overflow-hidden flex flex-col text-black border border-stone-300 relative select-none">
             {/* Top Third Black Header */}
             <div className="bg-[#1a1a1a] h-[33.33%] flex items-center">
@@ -177,15 +183,23 @@ const [issueDate, setIssueDate] = useState<string>(() => {
               </div>
             </div>
 
-            {/* Bottom Black Footer with Larger Issued Date */}
-            <div className="bg-[#1a1a1a] h-[20px] flex items-center justify-end px-3.5 z-10">
-              <span className="text-[8.5px] text-white font-extrabold tracking-widest">
+            {/* Live Scannable QR Code Box */}
+            <div className="absolute right-2 bottom-[26px] w-[32px] h-[32px] bg-white p-0.5 rounded shadow-sm z-30 flex items-center justify-center">
+              <img src={activeQrCodeUrl} alt="Verify QR Code" className="w-full h-full object-contain" />
+            </div>
+
+            {/* Bottom Black Footer with ID & Issued Date */}
+            <div className="bg-[#1a1a1a] h-[22px] flex items-center justify-between px-3.5 z-10">
+              <span className="text-[7.5px] text-white font-extrabold tracking-wider">
+                ID: {activeBadge.id}
+              </span>
+              <span className="text-[7.5px] text-white font-extrabold tracking-wider">
                 ISSUED: {issueDate.toUpperCase()}
               </span>
             </div>
 
             {/* Absolute Positioned Wider Photo Frame */}
-            <div className="absolute left-3 bottom-[24px] w-[34.1%] top-3.5 bg-stone-100 border-2 border-stone-400 overflow-hidden shadow-md flex items-center justify-center z-20">
+            <div className="absolute left-3 bottom-[26px] w-[34.1%] top-3.5 bg-stone-100 border-2 border-stone-400 overflow-hidden shadow-md flex items-center justify-center z-20">
               {activeBadge.imageUrl ? (
                 <img src={activeBadge.imageUrl} alt="Agent" className="w-full h-full object-cover" />
               ) : (
