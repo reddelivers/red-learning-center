@@ -62,7 +62,7 @@ function App() {
           setVerifyBadgeData({
             id: data.id,
             name: data.full_name || 'Agent',
-            role: data.role || 'Delivery Agent',
+            role: data.job_title || 'Delivery Agent',
             imageUrl: data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
           });
         } else {
