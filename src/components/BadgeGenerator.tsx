@@ -11,6 +11,23 @@ interface BadgeItem {
   verificationUrl?: string;
 }
 
+// Helper function to generate a stable, random-looking alphanumeric ID based on the name (matches BadgeDocument)
+const generateSecureIdFromName = (name: string): string => {
+  if (!name) return 'RED-000000';
+  
+  let hash = 0;
+  const cleanName = name.trim().toLowerCase();
+  for (let i = 0; i < cleanName.length; i++) {
+    hash = (hash << 5) - hash + cleanName.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  
+  const positiveHash = Math.abs(hash).toString(36).toUpperCase();
+  const randomSuffix = Math.abs(hash * 31).toString(36).toUpperCase();
+  
+  return `RED-${positiveHash}${randomSuffix}`.slice(0, 11);
+};
+
 export const BadgeGenerator: React.FC = () => {
   const [issueDate, setIssueDate] = useState<string>(() => {
     return new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
@@ -29,8 +46,10 @@ export const BadgeGenerator: React.FC = () => {
 
   const activeBadge = badges[activePreviewIndex] || badges[0] || { id: '1', name: '', role: 'Delivery Agent', imageUrl: '' };
 
-  // Compute live QR code URL for the active preview card
-  const activeVerifyData = activeBadge.verificationUrl || `https://yourdomain.com/verify?id=${activeBadge.id}`;
+  // Compute the live deterministic ID and dynamic verification URL matching BadgeDocument
+  const activeSecureId = generateSecureIdFromName(activeBadge.name);
+  const activeVerifyData = activeBadge.verificationUrl || 
+    `https://training.reddelivers.com/verify?id=${activeBadge.id || activeSecureId}`;
   const activeQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(activeVerifyData)}`;
 
   const handleFieldChange = (field: keyof BadgeItem, value: string) => {
@@ -188,10 +207,10 @@ export const BadgeGenerator: React.FC = () => {
               <img src={activeQrCodeUrl} alt="Verify QR Code" className="w-full h-full object-contain" />
             </div>
 
-            {/* Bottom Black Footer with ID & Issued Date */}
+            {/* Bottom Black Footer with Generated Secure ID & Issued Date */}
             <div className="bg-[#1a1a1a] h-[22px] flex items-center justify-between px-3.5 z-10">
               <span className="text-[7.5px] text-white font-extrabold tracking-wider">
-                ID: {activeBadge.id}
+                ID: {activeSecureId}
               </span>
               <span className="text-[7.5px] text-white font-extrabold tracking-wider">
                 ISSUED: {issueDate.toUpperCase()}

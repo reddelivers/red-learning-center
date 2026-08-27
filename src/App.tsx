@@ -37,7 +37,7 @@ function App() {
 
   const userName = viewingStudentName || profile?.full_name || session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Trainee';
 
-  // Handle Public Verification Data Fetching if on /verify route
+  // Handle Public Verification Data Fetching if on /verify route via Supabase profiles lookup
   useEffect(() => {
     if (!isVerifyPage) return;
 
@@ -49,10 +49,9 @@ function App() {
       return;
     }
 
-    // Since badges are generated dynamically or stored, you can fetch matching learner info from Supabase profiles/progress
     async function fetchPublicBadge() {
       try {
-        // Example: checking profiles or a designated badges table where id matches
+        // Query Supabase profiles table directly using the badge/profile id
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -67,16 +66,11 @@ function App() {
             imageUrl: data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
           });
         } else {
-          // Fallback or demo structure if ID matches a test badge
-          setVerifyBadgeData({
-            id: badgeId,
-            name: badgeId === '1' ? 'Jane Doe' : 'Authorized Agent',
-            role: 'Delivery Agent',
-            imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
-          });
+          setVerifyBadgeData(null);
         }
       } catch (err) {
         console.error('Error verifying badge:', err);
+        setVerifyBadgeData(null);
       } finally {
         setVerifyLoading(false);
       }

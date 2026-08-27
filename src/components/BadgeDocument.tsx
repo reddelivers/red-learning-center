@@ -6,13 +6,31 @@ interface BadgeData {
   name: string;
   role: string;
   imageUrl: string;
-  verificationUrl?: string; // Optional custom URL, defaults to a verification route using the ID
+  verificationUrl?: string;
 }
 
 interface BadgeDocumentProps {
   badges: BadgeData[];
   issueDate?: string;
 }
+
+// Helper function to generate a stable, random-looking alphanumeric ID based on the name
+const generateSecureIdFromName = (name: string): string => {
+  if (!name) return 'RED-000000';
+  
+  let hash = 0;
+  const cleanName = name.trim().toLowerCase();
+  for (let i = 0; i < cleanName.length; i++) {
+    hash = (hash << 5) - hash + cleanName.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  
+  // Convert absolute hash value to a positive hex string and pad/slice it
+  const positiveHash = Math.abs(hash).toString(36).toUpperCase();
+  const randomSuffix = Math.abs(hash * 31).toString(36).toUpperCase();
+  
+  return `RED-${positiveHash}${randomSuffix}`.slice(0, 11);
+};
 
 const styles = StyleSheet.create({
   page: {
@@ -92,7 +110,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textAlign: 'center',
   },
-  // Bottom Black Footer Bar (Adjusted layout to make space for QR code)
+  // Bottom Black Footer Bar
   footerContainer: {
     backgroundColor: '#1a1a1a',
     height: 22,
@@ -116,7 +134,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     position: 'absolute',
     right: 8,
-    bottom: 26, // Positioned just above the footer bar
+    bottom: 26,
   },
   qrImage: {
     width: '100%',
@@ -143,11 +161,17 @@ const styles = StyleSheet.create({
 export const BadgeDocument: React.FC<BadgeDocumentProps> = ({ 
   badges, 
   issueDate = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase() 
-}) => (  <Document>
+}) => (
+  <Document>
     <Page size="A4" style={styles.page}>
       {badges.map((badge) => {
-        // Construct the verification URL or data payload encoded in the QR code
-        const verifyData = badge.verificationUrl || `https://training.reddelivers.com/verify?id=${badge.id}`;
+        // Generate a deterministic random ID based on the agent's name
+        const secureBadgeId = generateSecureIdFromName(badge.name);
+        
+        // Use clean Supabase verification URL using the badge record/profile id
+        const verifyData = badge.verificationUrl || 
+          `https://training.reddelivers.com/verify?id=${badge.id || secureBadgeId}`;
+        
         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyData)}`;
 
         return (
@@ -184,10 +208,10 @@ export const BadgeDocument: React.FC<BadgeDocumentProps> = ({
               <Image src={qrCodeUrl} style={styles.qrImage} />
             </View>
 
-            {/* Bottom Black Footer with Issued Date */}
+            {/* Bottom Black Footer with Generated ID */}
             <View style={styles.footerContainer}>
               <Text style={styles.dateText}>
-                ID: {badge.id}
+                ID: {secureBadgeId}
               </Text>
               <Text style={styles.dateText}>
                 ISSUED: {issueDate.toUpperCase()}
