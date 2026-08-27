@@ -11,6 +11,7 @@ import { ProfileSettings } from '@/components/ProfileSettings';
 import { AdminContentManager } from '@/components/AdminContentManager';
 import { AdminLearnerProgress } from '@/components/AdminLearnerProgress';
 import { AdminAddLearner } from '@/components/AdminAddLearner';
+import { BadgeGenerator } from '@/components/BadgeGenerator';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -20,7 +21,7 @@ function App() {
   const [modules, setModules] = useState<ModuleWithProgress[]>([]);
   const [certificateModules, setCertificateModules] = useState<ModuleWithProgress[]>([]);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
-  const [view, setView] = useState<'dashboard' | 'module' | 'certificate' | 'profile' | 'admin_content' | 'admin_learners' | 'admin_add_learner'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'module' | 'certificate' | 'profile' | 'admin_content' | 'admin_learners' | 'admin_add_learner' | 'admin_badges'>('dashboard');
   const [activeSectionName, setActiveSectionName] = useState<string>('');
   const [viewingStudentName, setViewingStudentName] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -269,6 +270,12 @@ function App() {
                 <span className="text-ink-800 font-medium">Add New Learner</span>
               </>
             )}
+            {view === 'admin_badges' && (
+              <>
+                <span className="text-ink-300">/</span>
+                <span className="text-ink-800 font-medium">Badge Generator</span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 rounded-lg bg-ink-50 border border-ink-200 px-3 py-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 transition-all">
@@ -316,6 +323,8 @@ function App() {
                 <p className="text-sm">Loading your training...</p>
               </div>
             </div>
+          ) : view === 'admin_badges' ? (
+            <BadgeGenerator />
           ) : view === 'admin_content' ? (
             <AdminContentManager />
           ) : view === 'admin_learners' ? (

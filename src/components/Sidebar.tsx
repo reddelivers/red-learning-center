@@ -1,4 +1,4 @@
-import { GraduationCap, CheckCircle2, Clock, FileText, PlayCircle, PlusCircle, Users, UserPlus, ShieldAlert } from 'lucide-react';
+import { GraduationCap, CheckCircle2, Clock, FileText, PlayCircle, PlusCircle, Users, UserPlus, ShieldAlert, Award } from 'lucide-react';
 import type { ModuleWithProgress } from '@/lib/supabase';
 import { sectionProgress, formatDuration, statusOf } from '@/lib/progress';
 
@@ -10,7 +10,7 @@ interface SidebarProps {
   onSelectSection: (section: string) => void;
   userRole?: string;
   currentView?: string;
-  onSelectView?: (view: 'dashboard' | 'admin_content' | 'admin_learners' | 'admin_add_learner') => void;
+  onSelectView?: (view: 'dashboard' | 'admin_content' | 'admin_learners' | 'admin_add_learner' | 'admin_badges') => void;
 }
 
 function groupBySection(modules: ModuleWithProgress[]): { section: string; items: ModuleWithProgress[] }[] {
@@ -91,6 +91,17 @@ export function Sidebar({
             >
               <UserPlus className="w-4 h-4 text-brand-400" />
               <span>Add New Learner</span>
+            </button>
+            <button
+              onClick={() => onSelectView('admin_badges')}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-sm font-medium transition-colors ${
+                currentView === 'admin_badges'
+                  ? 'bg-brand-600/20 text-white'
+                  : 'text-ink-300 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <Award className="w-4 h-4 text-brand-400" />
+              <span>Badge Generator</span>
             </button>
           </div>
         )}
