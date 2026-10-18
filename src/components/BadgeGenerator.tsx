@@ -143,4 +143,135 @@ export const BadgeGenerator: React.FC = () => {
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        // If storage bucket is missing or unconfigured, fallback
+        // If storage bucket is missing or unconfigured, fallback to Base64 so it works instantly
+        console.warn('Storage bucket upload failed, using local fallback:', uploadError.message);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          if (result) {
+            handleFieldChange('imageUrl', result);
+            void syncProfileToDatabase({ imageUrl: result });
+          }
+          setUploading(false);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      // Get public URL from storage
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update state
+      handleFieldChange('imageUrl', publicUrl);
+
+      // Sync publicUrl directly to the profile's avatar_url in database
+      await syncProfileToDatabase({ imageUrl: publicUrl });
+    } catch (err) {
+      console.error('Error handling image upload:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const addNewBadge = () => {
+    const tempId = `temp-${Date.now()}`;
+    const newBadge: BadgeItem = {
+      id: tempId,
+      name: 'New Unlinked Agent',
+      role: 'Delivery Agent',
+      imageUrl: '',
+      secureId: generateSecureIdFromName(tempId)
+    };
+    
+    setBadges((prev) => {
+      const updated = [...prev, newBadge];
+      setActivePreviewIndex(updated.length - 1);
+      return updated;
+    });
+  };
+
+  const saveUnlinkedToDatabase = async () => {
+    if (!activeBadge.id.startsWith('temp-')) return;
+
+    setSavingStatus('Creating profile...');
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          full_name: activeBadge.name,
+          job_title: activeBadge.role,
+          avatar_url: activeBadge.imageUrl,
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating profile:', error);
+      setSavingStatus('Failed to create');
+    } else if (data) {
+      setDbUsers(prev => [...prev, data]);
+      setBadges(prev => {
+        const updated = [...prev];
+        updated[activePreviewIndex] = {
+          ...updated[activePreviewIndex],
+          id: data.id,
+          secureId: generateSecureIdFromName(data.id)
+        };
+        return updated;
+      });
+      setSavingStatus('Profile Created ✓');
+      setTimeout(() => setSavingStatus(null), 2500);
+    }
+  };
+
+  const removeBadge = (index: number) => {
+    if (badges.length <= 1) return;
+    setBadges((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      setActivePreviewIndex((currIdx) => Math.max(0, currIdx > index ? currIdx - 1 : currIdx));
+      return updated;
+    });
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 bg-ink-900 rounded-xl border border-white/10 text-white shadow-xl space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-6 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-brand-600/20 border border-brand-500/30 flex items-center justify-center">
+            <Award className="w-5 h-5 text-brand-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">RED ID Badge & Profile Manager</h2>
+            <p className="text-xs text-ink-400">Updates here automatically sync with agent database profiles or stay as manual unlinked entries.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {savingStatus && (
+            <span className="text-xs font-semibold text-brand-400 flex items-center gap-1.5 animate-pulse">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {savingStatus}
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-ink-400">Issue Date:</label>
+            <input
+              type="text"
+              value={issueDate}
+              onChange={(e) => setIssueDate(e.target.value)}
+              className="w-28 px-3 py-1.5 bg-ink-950 border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-brand-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Left Side: Live UI Preview Box */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-300">
+              Live
