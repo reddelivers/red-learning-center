@@ -274,4 +274,194 @@ export const BadgeGenerator: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-300">
-              Live
+              Live Card Preview ({badges.length > 0 ? activePreviewIndex + 1 : 0} of {badges.length})
+            </span>
+            <div className="flex gap-1.5 flex-wrap max-w-[220px] justify-end">
+              {badges.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActivePreviewIndex(idx)}
+                  className={`w-6 h-6 rounded-md text-xs font-bold transition-colors ${
+                    activePreviewIndex === idx ? 'bg-brand-600 text-white' : 'bg-ink-950 text-ink-400 hover:bg-white/5'
+                  }`}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+              <button
+                onClick={addNewBadge}
+                className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-brand-400 text-xs font-medium flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add
+              </button>
+            </div>
+          </div>
+
+          {/* PDF Mockup Card */}
+          <div className="w-full aspect-[1.58/1] bg-white rounded-md shadow-2xl overflow-hidden flex flex-col text-black border border-stone-300 relative select-none">
+            <div className="bg-[#1a1a1a] h-[33.33%] flex items-center">
+              <div className="w-[34%]" />
+              <div className="flex-1 flex items-center justify-center pr-3">
+                <img 
+                  src="https://static.wixstatic.com/media/34d825_e580ba21bc68413e9510a48b2143ac23~mv2.png/v1/fill/w_398,h_230,al_c,lg_1,q_85,enc_avif,quality_auto/RELIABLE%20EXPEDITED%20DELIVERY%20BLACK_edited.png" 
+                  alt="RED Logo" 
+                  className="max-w-[68%] max-h-[68%] object-contain"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 bg-white relative flex">
+              <div className="w-[35%]" />
+              <div className="flex-1 flex flex-col justify-center items-center">
+                <span className="font-black text-base text-stone-900 tracking-tight truncate leading-tight mb-2 text-center px-4 w-full">
+                  {activeBadge.name ? activeBadge.name.toUpperCase() : 'AGENT NAME'}
+                </span>
+                
+                <div className="bg-red-600 text-white font-black text-[11px] py-1.5 tracking-wider text-center shadow-sm w-full truncate px-2">
+                  {activeBadge.role ? activeBadge.role.toUpperCase() : 'DELIVERY AGENT'}
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute right-2 bottom-[26px] w-[32px] h-[32px] bg-white p-0.5 rounded shadow-sm z-30 flex items-center justify-center">
+              <img src={activeQrCodeUrl} alt="Verify QR Code" className="w-full h-full object-contain" />
+            </div>
+
+            <div className="bg-[#1a1a1a] h-[22px] flex items-center justify-between px-3.5 z-10">
+              <span className="text-[7.5px] text-white font-extrabold tracking-wider">
+                ID: {activeSecureId}
+              </span>
+              <span className="text-[7.5px] text-white font-extrabold tracking-wider">
+                ISSUED: {issueDate.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="absolute left-3 bottom-[26px] w-[34.1%] top-3.5 bg-stone-100 border-2 border-stone-400 overflow-hidden shadow-md flex items-center justify-center z-20">
+              {activeBadge.imageUrl ? (
+                <img src={activeBadge.imageUrl} alt="Agent" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-6 h-6 text-stone-400" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Form & Database Selection */}
+        <div className="space-y-5 bg-ink-950 p-5 rounded-xl border border-white/5">
+          <div className="flex items-center justify-between pb-3 border-b border-white/5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-brand-400 flex items-center gap-1.5">
+              <Database className="w-4 h-4" /> Connected Profile Data
+            </span>
+            {badges.length > 1 && (
+              <button
+                onClick={() => removeBadge(activePreviewIndex)}
+                className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Remove Card
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-[11px] font-medium uppercase tracking-wider text-ink-400">
+                  Link to Database Profile
+                </label>
+                {activeBadge.id?.startsWith('temp-') && (
+                  <button
+                    onClick={saveUnlinkedToDatabase}
+                    className="text-[10px] text-brand-400 hover:text-brand-300 underline font-medium"
+                  >
+                    + Save to Database Now
+                  </button>
+                )}
+              </div>
+              <select
+                value={activeBadge.id}
+                onChange={(e) => handleDbUserSelect(e.target.value)}
+                className="w-full px-3 py-2 bg-ink-900 border border-brand-500/30 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+              >
+                <option value="" disabled>Select user from database...</option>
+                {activeBadge.id?.startsWith('temp-') && (
+                  <option value={activeBadge.id}>✨ Unlinked Manual Entry (Temporary)</option>
+                )}
+                {dbUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name || 'Unknown'} — {user.job_title || user.role || 'Agent'}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-ink-500 mt-1">
+                {activeBadge.id?.startsWith('temp-') 
+                  ? 'Currently unlinked. You can export it or click "Save to Database Now" to register it.' 
+                  : 'Links QR verification directly to this user\'s live profile record.'}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-white/5">
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-ink-400 mb-1">
+                Display Name
+              </label>
+              <input
+                type="text"
+                value={activeBadge.name}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
+                className="w-full px-3 py-2 bg-ink-900 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-ink-400 mb-1">
+                Job Title / Role Banner (SQL: job_title)
+              </label>
+              <input
+                type="text"
+                value={activeBadge.role}
+                onChange={(e) => handleFieldChange('role', e.target.value)}
+                placeholder="e.g. Senior Fleet Captain"
+                className="w-full px-3 py-2 bg-ink-900 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-ink-400 mb-1">
+                Upload Profile Image
+              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-ink-900 border border-brand-500/40 rounded-lg text-xs font-semibold text-brand-300 hover:bg-white/5 cursor-pointer transition">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin text-brand-400" /> : <Upload className="w-4 h-4" />}
+                  <span>{uploading ? 'Uploading to Storage...' : 'Upload Image File...'}</span>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
+                </label>
+                {activeBadge.imageUrl && <span className="text-xs text-emerald-400 font-medium">✓ Ready</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="pt-6 border-t border-white/10 flex items-center justify-between">
+        <span className="text-xs text-ink-400 font-medium">
+          {badges.length} total badge{badges.length === 1 ? '' : 's'} ready for compilation.
+        </span>
+        
+        {badges.length > 0 && (
+          <PDFDownloadLink
+            document={<BadgeDocument badges={badges} issueDate={issueDate} />}
+            fileName="RED_Badges_Batch.pdf"
+            className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-brand-600/30"
+          >
+            {({ loading }) => (
+              <>
+                <Download className="w-4 h-4" />
+                <span>{loading ? 'Compiling PDF...' : 'Download Badge PDF Batch'}</span>
+              </>
+            )}
+          </PDFDownloadLink>
+        )}
+      </div>
+    </div>
+  );
+};
