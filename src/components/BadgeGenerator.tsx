@@ -28,14 +28,42 @@ const generateSecureIdFromName = (name: string): string => {
 
 export const BadgeGenerator: React.FC = () => {
   const [issueDate, setIssueDate] = useState<string>(() => {
+    const savedDate = localStorage.getItem('red_badge_issue_date');
+    if (savedDate) return savedDate;
     return new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
   });
   
   const [dbUsers, setDbUsers] = useState<any[]>([]);
-  const [badges, setBadges] = useState<BadgeItem[]>([]);
+  
+  // Initialize badges from localStorage if available
+  const [badges, setBadges] = useState<BadgeItem[]>(() => {
+    const savedBadges = localStorage.getItem('red_badge_items');
+    if (savedBadges) {
+      try {
+        const parsed = JSON.parse(savedBadges);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error('Failed to parse saved badges from localStorage', e);
+      }
+    }
+    return [];
+  });
+
   const [activePreviewIndex, setActivePreviewIndex] = useState<number>(0);
   const [uploading, setUploading] = useState<boolean>(false);
   const [savingStatus, setSavingStatus] = useState<string | null>(null);
+
+  // Save badges to localStorage whenever they change
+  useEffect(() => {
+    if (badges.length > 0) {
+      localStorage.setItem('red_badge_items', JSON.stringify(badges));
+    }
+  }, [badges]);
+
+  // Save issueDate to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('red_badge_issue_date', issueDate);
+  }, [issueDate]);
 
   // Fetch real users from the Supabase profiles table on load
   useEffect(() => {
@@ -43,6 +71,7 @@ export const BadgeGenerator: React.FC = () => {
       const { data, error } = await supabase.from('profiles').select('*').order('full_name');
       if (!error && data) {
         setDbUsers(data);
+        // Only seed default profile if localStorage was completely empty
         if (data.length > 0 && badges.length === 0) {
           setBadges([{
             id: data[0].id,
@@ -66,7 +95,7 @@ export const BadgeGenerator: React.FC = () => {
   const syncProfileToDatabase = async (updatedFields: Partial<BadgeItem>) => {
     // Skip if it's a temporary unlinked ID
     if (!activeBadge.id || activeBadge.id.startsWith('temp-') || activeBadge.id.length < 10) {
-      setSavingStatus('Local only (Unlinked)');
+      setSavingStatus('Saved locally (Unlinked)');
       setTimeout(() => setSavingStatus(null), 2000);
       return;
     }
@@ -237,6 +266,14 @@ export const BadgeGenerator: React.FC = () => {
     });
   };
 
+  const clearLocalStorageCache = () => {
+    if (window.confirm('Clear all saved unlinked badge progress?')) {
+      localStorage.removeItem('red_badge_items');
+      localStorage.removeItem('red_badge_issue_date');
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-ink-900 rounded-xl border border-white/10 text-white shadow-xl space-y-8">
       {/* Header */}
@@ -247,7 +284,7 @@ export const BadgeGenerator: React.FC = () => {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">RED ID Badge & Profile Manager</h2>
-            <p className="text-xs text-ink-400">Updates here automatically sync with agent database profiles or stay as manual unlinked entries.</p>
+            <p className="text-xs text-ink-400">Progress is automatically saved locally so you won't lose unlinked badges on refresh.</p>
           </div>
         </div>
 
@@ -394,7 +431,7 @@ export const BadgeGenerator: React.FC = () => {
               </select>
               <p className="text-[10px] text-ink-500 mt-1">
                 {activeBadge.id?.startsWith('temp-') 
-                  ? 'Currently unlinked. You can export it or click "Save to Database Now" to register it.' 
+                  ? 'Currently unlinked. Stored locally until exported or saved to DB.' 
                   : 'Links QR verification directly to this user\'s live profile record.'}
               </p>
             </div>
@@ -443,9 +480,17 @@ export const BadgeGenerator: React.FC = () => {
 
       {/* Footer */}
       <div className="pt-6 border-t border-white/10 flex items-center justify-between">
-        <span className="text-xs text-ink-400 font-medium">
-          {badges.length} total badge{badges.length === 1 ? '' : 's'} ready for compilation.
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-ink-400 font-medium">
+            {badges.length} total badge{badges.length === 1 ? '' : 's'} ready for compilation.
+          </span>
+          <button
+            onClick={clearLocalStorageCache}
+            className="text-[10px] text-ink-500 hover:text-red-400 underline transition"
+          >
+            Reset All Local Data
+          </button>
+        </div>
         
         {badges.length > 0 && (
           <PDFDownloadLink
